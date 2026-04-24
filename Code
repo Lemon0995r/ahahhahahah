@@ -1,0 +1,95 @@
+import tkinter as tk
+from tkinter import messagebox
+import random
+import json
+import os
+
+# Список цитат по умолчанию
+DEFAULT_QUOTES = [
+    {"text": "Жизнь — это то, что с тобой происходит, пока ты строишь планы.", "author": "Джон Леннон", "category": "Жизнь"},
+    {"text": "Единственный способ делать великие дела — любить то, что вы делаете.", "author": "Стив Джобс", "category": "Успех"},
+    {"text": "Быть или не быть, вот в чем вопрос.", "author": "Шекспир", "category": "Философия"},
+]
+
+class QuoteApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Random Quote Generator")
+        self.history_file = "history.json"
+        self.quotes = DEFAULT_QUOTES
+        self.history = self.load_history()
+
+        self.setup_ui()
+
+    def setup_ui(self):
+        # Отображение текущей цитаты
+        self.quote_label = tk.Label(self.root, text="Нажмите кнопку, чтобы получить цитату", 
+                                   wraplength=400, font=("Arial", 11, "italic"), pady=20)
+        self.quote_label.pack()
+
+        # Кнопка генерации
+        btn_gen = tk.Button(self.root, text="Сгенерировать цитату", command=self.generate_quote, bg="#4CAF50", fg="white")
+        btn_gen.pack(pady=5)
+
+        # Секция фильтрации
+        filter_frame = tk.Frame(self.root)
+        filter_frame.pack(pady=10)
+        
+        tk.Label(filter_frame, text="Поиск по автору/теме:").pack(side=tk.LEFT)
+        self.filter_entry = tk.Entry(filter_frame)
+        self.filter_entry.pack(side=tk.LEFT, padx=5)
+        
+        btn_filter = tk.Button(filter_frame, text="Применить", command=self.update_history_display)
+        btn_filter.pack(side=tk.LEFT)
+
+        # Список истории
+        tk.Label(self.root, text="История просмотров:").pack()
+        self.history_listbox = tk.Listbox(self.root, width=80, height=10)
+        self.history_listbox.pack(padx=10, pady=5)
+        
+        self.update_history_display()
+
+    def generate_quote(self):
+        quote = random.choice(self.quotes)
+        self.quote_label.config(text=f"«{quote['text']}»\n— {quote['author']}")
+        
+        self.history.append(quote)
+        self.save_history()
+        self.update_history_display()
+
+    def update_history_display(self):
+        self.history_listbox.delete(0, tk.END)
+        # Базовая валидация: убираем лишние пробелы и приводим к нижнему регистру
+        search_query = self.filter_entry.get().strip().lower()
+        
+        for q in reversed(self.history):
+            # Если поле поиска пустое — показываем всё, если нет — фильтруем
+            if not search_query or (search_query in q['author'].lower() or search_query in q['category'].lower()):
+                display_text = f"[{q['category']}] {q['author']}: {q['text']}"
+                self.history_listbox.insert(tk.END, display_text)
+
+    def save_history(self):
+        """Безопасное сохранение истории в JSON"""
+        try:
+            with open(self.history_file, 'w', encoding='utf-8') as f:
+                # ИСПРАВЛЕНО: ensure_ascii вместо ensure_all_ascii
+                json.dump(self.history, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            messagebox.showerror("Ошибка сохранения", f"Не удалось сохранить историю: {e}")
+
+    def load_history(self):
+        """Безопасная загрузка истории"""
+        if not os.path.exists(self.history_file):
+            return []
+        try:
+            with open(self.history_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, Exception):
+            # Если файл поврежден, возвращаем пустой список вместо падения
+            return []
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = QuoteApp(root)
+    root.mainloop()
+
